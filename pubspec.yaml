@@ -1,0 +1,52 @@
+name: my_voice_assistant_app
+description: Nepali voice assistant desktop and mobile app
+version: 1.0.0
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Cross-platform audio recording
+  record: ^6.2.0
+  record_linux: ^1.3.0
+
+  # Audio playback
+  just_audio: ^0.9.42
+  just_audio_windows: ^0.2.2
+
+  # File management
+  path_provider: ^2.1.1
+  path: ^1.8.3
+
+  # Utilities
+  uuid: ^4.2.2
+
+  # Permissions
+  permission_handler: ^11.1.0
+
+  # State management
+  provider: ^6.1.1
+
+  # Shared preferences for settings
+  shared_preferences: ^2.5.4
+
+  # HTTP for API signals
+  http: ^1.2.0
+
+  # New features for elderly
+  flutter_local_notifications: ^17.1.2
+  url_launcher: ^6.3.0
+  google_fonts: ^6.2.1
+
+  timezone: ^0.9.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true

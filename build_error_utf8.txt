@@ -1,0 +1,150 @@
+﻿Running Gradle task 'assembleDebug'...                          
+flutter : warning: 
+[options] source value 
+8 is obsolete and will 
+be removed in a future 
+release
+At line:1 char:1
++ flutter build apk 
+--debug > 
+build_error.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
+~~
+    + CategoryInfo      
+        : NotSpecified  
+  : (warning: [optio.   
+ .. future release:S    
+tring) [], RemoteEx    
+ception
+    + FullyQualifiedErr 
+   orId : NativeComman  
+  dError
+ 
+warning: [options] 
+target value 8 is 
+obsolete and will be 
+removed in a future 
+release
+warning: [options] To 
+suppress warnings about 
+obsolete options, use 
+-Xlint:-options.
+C:\Users\PREDATOR\AppDat
+a\Local\Pub\Cache\hosted
+\pub.dev\vibration-1.9.0
+\android\src\main\java\c
+om\benjaminabel\vibratio
+n\VibrationPlugin.java:2
+0: error: cannot find 
+symbol
+    public static void r
+egisterWith(io.flutter.p
+lugin.common.PluginRegis
+try.Registrar 
+registrar) {
+                        
+                        
+                        
+   ^
+  symbol:   class 
+Registrar
+  location: interface 
+PluginRegistry
+Note: C:\Users\PREDATOR\
+AppData\Local\Pub\Cache\
+hosted\pub.dev\vibration
+-1.9.0\android\src\main\
+java\com\benjaminabel\vi
+bration\VibrationPlugin.
+java uses or overrides 
+a deprecated API.
+Note: Recompile with 
+-Xlint:deprecation for 
+details.
+1 error
+3 warnings
+
+FAILURE: Build failed 
+with an exception.
+
+* What went wrong:
+Execution failed for 
+task ':vibration:compile
+DebugJavaWithJavac'.
+> Compilation failed; 
+see the compiler output 
+below.
+  Note: C:\Users\PREDATO
+R\AppData\Local\Pub\Cach
+e\hosted\pub.dev\vibrati
+on-1.9.0\android\src\mai
+n\java\com\benjaminabel\
+vibration\VibrationPlugi
+n.java uses or 
+overrides a deprecated 
+API.
+  warning: [options] 
+target value 8 is 
+obsolete and will be 
+removed in a future 
+release
+  Note: Recompile with 
+-Xlint:deprecation for 
+details.
+  warning: [options] 
+source value 8 is 
+obsolete and will be 
+removed in a future 
+release
+  C:\Users\PREDATOR\AppD
+ata\Local\Pub\Cache\host
+ed\pub.dev\vibration-1.9
+.0\android\src\main\java
+\com\benjaminabel\vibrat
+ion\VibrationPlugin.java
+:20: error: cannot find 
+symbol
+      public static 
+void registerWith(io.flu
+tter.plugin.common.Plugi
+nRegistry.Registrar 
+registrar) {
+                        
+                        
+                        
+     ^
+    symbol:   class 
+Registrar
+    location: interface 
+PluginRegistry
+  warning: [options] To 
+suppress warnings about 
+obsolete options, use 
+-Xlint:-options.
+  1 error
+  3 warnings
+
+* Try:
+> Check your code and 
+dependencies to fix the 
+compilation error(s)
+> Run with --scan to 
+get full insights.
+
+BUILD FAILED in 5s
+Running Gradle task 'assembleDebug'...                              6.1s
+
+ΓöîΓöÇ Flutter Fix ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+Γöé [!] Consult the error logs above to identify any broken plugins, specifically those containing  Γöé
+Γöé "error: cannot find symbol..."                                                                  Γöé
+Γöé This issue is likely caused by v1 embedding removal and the plugin's continued usage of removed Γöé
+Γöé references to the v1 embedding.                                                                 Γöé
+Γöé To fix this error, please upgrade your current package's dependencies to latest versions by     Γöé
+Γöé running `flutter pub upgrade`.                                                                  Γöé
+Γöé If that does not work, please file an issue for the problematic plugin(s) here:                 Γöé
+Γöé https://github.com/flutter/flutter/issues                                                       Γöé
+ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+Gradle task 
+assembleDebug failed 
+with exit code 1
