@@ -27,8 +27,11 @@
         </intent>
     </queries>
 
+    <!-- Re-schedule notifications after device restart -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
-        android:label="Nepali Voice Assistant"
+        android:label="साथी (Saathi)"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

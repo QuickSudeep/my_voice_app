@@ -1,12 +1,14 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../services/voice_service.dart';
 import '../services/settings_service.dart';
 import '../services/emergency_service.dart';
-import '../services/reminder_service.dart';
+
+import '../services/contact_service.dart';
+import '../models/contact_model.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -17,12 +19,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+  late AnimationController _pulseController;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
@@ -34,33 +36,28 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
-  void _triggerVibration({bool heavy = false}) {
-    if (heavy) {
-      HapticFeedback.heavyImpact();
-    } else {
-      HapticFeedback.mediumImpact();
-    }
+  void _haptic({bool heavy = false}) {
+    heavy ? HapticFeedback.heavyImpact() : HapticFeedback.mediumImpact();
   }
 
   Future<void> _handleMicTap() async {
-    final voiceService = context.read<VoiceService>();
-    _triggerVibration(heavy: !voiceService.isRecording);
+    final voice    = context.read<VoiceService>();
+    final settings = context.read<SettingsService>();
+    _haptic(heavy: !voice.isRecording);
 
-    if (!voiceService.isRecording && !voiceService.isPaused) {
-      final settings = context.read<SettingsService>();
-      await voiceService.startRecording(
-        autoStop: settings.autoStopOnSilence,
-        threshold: settings.silenceThreshold,
+    if (!voice.isRecording && !voice.isPaused) {
+      await voice.startRecording(
+        autoStop:       settings.autoStopOnSilence,
+        threshold:      settings.silenceThreshold,
         silenceDuration: settings.silenceDuration,
-        fastApiUrl: settings.fastApiUrl,
+        fastApiUrl:     settings.fastApiUrl,
       );
     } else {
-      final settings = context.read<SettingsService>();
-      await voiceService.stopRecording(fastApiUrl: settings.fastApiUrl);
+      await voice.stopRecording(fastApiUrl: settings.fastApiUrl);
     }
   }
 
@@ -72,159 +69,163 @@ class _HomeScreenState extends State<HomeScreen>
         title: Text('साथी', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.history_rounded, size: 32),
+            tooltip: 'Reminders',
+            icon: const Icon(Icons.notifications_active_rounded, size: 30),
+            onPressed: () => Navigator.pushNamed(context, '/reminders'),
+          ),
+          IconButton(
+            tooltip: 'Contacts',
+            icon: const Icon(Icons.contacts_rounded, size: 30),
+            onPressed: () => Navigator.pushNamed(context, '/contacts'),
+          ),
+          IconButton(
+            tooltip: 'Recordings',
+            icon: const Icon(Icons.history_rounded, size: 30),
             onPressed: () => Navigator.pushNamed(context, '/recordings'),
           ),
           IconButton(
-            icon: const Icon(Icons.settings_rounded, size: 32),
+            tooltip: 'Admin',
+            icon: const Icon(Icons.admin_panel_settings_rounded, size: 30),
             onPressed: () => Navigator.pushNamed(context, '/admin'),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
         ],
       ),
       body: Stack(
         children: [
-          // Premium Gradient Background
+          // Gradient background
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFFE3F2FD), Color(0xFFF5F7FA), Color(0xFFE1F5FE)],
+                colors: [Color(0xFFE3F2FD), Color(0xFFF5F7FA), Color(0xFFE8EAF6)],
               ),
             ),
           ),
-
           SafeArea(
             child: Consumer<VoiceService>(
-              builder: (context, voiceService, _) {
+              builder: (context, voice, _) {
                 return LayoutBuilder(
                   builder: (context, constraints) {
-                    // Cap mic button at 45% of available height to prevent overflow
-                    final maxBtnSize = constraints.maxHeight * 0.45;
-                    final baseBtnSize = maxBtnSize.clamp(160.0, 240.0);
-                    // Pulse shrinks on small screens
-                    final maxPulse = (constraints.maxHeight * 0.04).clamp(0.0, 30.0);
-                    // Action card height scales too
-                    final cardHeight = (constraints.maxHeight * 0.18).clamp(110.0, 150.0);
+                    final maxH       = constraints.maxHeight;
+                    final btnSize    = (maxH * 0.28).clamp(140.0, 200.0);
+                    final maxPulse   = (maxH * 0.04).clamp(0.0, 24.0);
 
-                    return SingleChildScrollView(
-                      physics: const NeverScrollableScrollPhysics(),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // Status Card
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-                              child: _GlassCard(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      voiceService.statusMessage,
-                                      textAlign: TextAlign.center,
-                                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                        fontSize: 20,
+                    return Column(
+                      children: [
+                        // ── Elderly Name Banner ──────────────────────────
+                        _ElderlyBanner(),
+
+                        // ── Status / Response Card ───────────────────────
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                          child: _GlassCard(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  voice.statusMessage,
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF0D47A1),
+                                    height: 1.4,
+                                  ),
+                                ),
+                                if (voice.recordingDuration.inSeconds > 0)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Text(
+                                      _formatDuration(voice.recordingDuration),
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 36,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.redAccent,
                                       ),
                                     ),
-                                    if (voiceService.recordingDuration.inSeconds > 0)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 10),
+                                  ),
+                                // Response text from server
+                                if (voice.lastResponseText != null) ...[
+                                  const Divider(height: 20),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('🤖 ', style: TextStyle(fontSize: 18)),
+                                      Expanded(
                                         child: Text(
-                                          _formatDuration(voiceService.recordingDuration),
+                                          voice.lastResponseText!,
                                           style: GoogleFonts.outfit(
-                                            fontSize: 40,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.redAccent,
+                                            fontSize: 16,
+                                            color: Colors.black87,
+                                            height: 1.5,
                                           ),
                                         ),
                                       ),
-                                  ],
-                                ),
-                              ),
+                                    ],
+                                  ),
+                                ],
+                              ],
                             ),
+                          ),
+                        ),
 
-                            // Main Mic Button
-                            GestureDetector(
+                        // ── Mic Button ──────────────────────────────────
+                        Expanded(
+                          child: Center(
+                            child: GestureDetector(
                               onTap: _handleMicTap,
                               child: AnimatedBuilder(
-                                animation: _controller,
+                                animation: _pulseController,
                                 builder: (context, _) {
-                                  final pulse = voiceService.isRecording
-                                      ? _controller.value * maxPulse
+                                  final pulse = voice.isRecording
+                                      ? _pulseController.value * maxPulse
                                       : 0.0;
-                                  final btnSize = baseBtnSize + pulse;
+                                  final size = btnSize + pulse;
                                   return Container(
-                                    width: btnSize,
-                                    height: btnSize,
+                                    width: size, height: size,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       gradient: LinearGradient(
-                                        colors: voiceService.isRecording
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: voice.isRecording
                                             ? [Colors.redAccent, Colors.red[900]!]
                                             : [const Color(0xFF1E88E5), const Color(0xFF0D47A1)],
                                       ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: (voiceService.isRecording
-                                                  ? Colors.red
-                                                  : Colors.blue)
-                                              .withValues(alpha: 0.3),
-                                          blurRadius: 24 + pulse,
-                                          spreadRadius: 6 + pulse / 3,
+                                          color: (voice.isRecording ? Colors.red : Colors.blue)
+                                              .withValues(alpha: 0.35),
+                                          blurRadius: 28 + pulse,
+                                          spreadRadius: 4 + pulse / 3,
                                         ),
                                       ],
                                     ),
                                     child: Icon(
-                                      voiceService.isRecording
+                                      voice.isRecording
                                           ? Icons.stop_rounded
                                           : Icons.mic_rounded,
-                                      size: baseBtnSize * 0.45,
+                                      size: btnSize * 0.42,
                                       color: Colors.white,
                                     ),
                                   );
                                 },
                               ),
                             ),
-
-                            // Quick Action Grid
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: _ActionCard(
-                                      label: 'औषधी',
-                                      icon: Icons.medication_rounded,
-                                      color: Colors.teal,
-                                      height: cardHeight,
-                                      onTap: () {
-                                        _triggerVibration();
-                                        _showMedicineReminderDialog(context);
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: _ActionCard(
-                                      label: 'मद्दत (SOS)',
-                                      icon: Icons.sos_rounded,
-                                      color: Colors.red[700]!,
-                                      height: cardHeight,
-                                      onTap: () {
-                                        _triggerVibration(heavy: true);
-                                        _showSOSConfirmDialog(context);
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
+
+                        // ── Quick Dial Row ───────────────────────────────
+                        _QuickDialRow(),
+
+                        // ── Action Cards ─────────────────────────────────
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                          child: _ActionGrid(haptic: _haptic),
+                        ),
+                      ],
                     );
                   },
                 );
@@ -236,93 +237,207 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  void _showSOSConfirmDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('मद्दत चाहिन्छ? (Need Help?)'),
-        content: const Text('तपाईं आपतकालीन कल गर्न चाहनुहुन्छ?\n(Do you want to make an emergency call?)'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('होइन (No)', style: TextStyle(fontSize: 20)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<EmergencyService>().triggerSOS();
-            },
-            child: const Text('हुन्छ (Yes)', style: TextStyle(fontSize: 20)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showMedicineReminderDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('औषधीको समय मिलाउनुहोस्\n(Set Medicine Time)'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('अहिलेको लागि, ८ बजेको रिमाइन्डर सेट गरौं।\n(For now, let\'s set an 8 PM reminder.)'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('रद्द गर्नुहोस् (Cancel)'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<ReminderService>().scheduleMedicineReminder(
-                id: 1,
-                title: 'औषधी खाने समय',
-                body: 'तपाईंको औषधी खाने समय भयो।',
-                time: const TimeOfDay(hour: 20, minute: 0),
-              );
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('रिमाइन्डर सेट भयो (Reminder Set)')),
-              );
-            },
-            child: const Text('सेट गर्नुहोस् (Set)'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final minutes = twoDigits(duration.inMinutes.remainder(60));
-    final seconds = twoDigits(duration.inSeconds.remainder(60));
-    return '$minutes:$seconds';
+  String _formatDuration(Duration d) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(d.inMinutes.remainder(60))}:${two(d.inSeconds.remainder(60))}';
   }
 }
 
-class _GlassCard extends StatelessWidget {
-  final Widget child;
-  const _GlassCard({required this.child});
+// ─── Elderly Name Banner ──────────────────────────────────────────────────────
+
+class _ElderlyBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final name = context.read<SettingsService>().elderlyName;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Row(
+        children: [
+          const CircleAvatar(
+            radius: 20,
+            backgroundColor: Color(0xFF0D47A1),
+            child: Icon(Icons.person_rounded, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('नमस्ते! 🙏', style: GoogleFonts.outfit(fontSize: 12, color: Colors.black54)),
+              Text(name, style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF0D47A1))),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Quick Dial Row ───────────────────────────────────────────────────────────
+
+class _QuickDialRow extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<ContactService>(
+      builder: (context, cs, _) {
+        final emergency = cs.emergencyContacts.take(3).toList();
+        if (emergency.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: GestureDetector(
+              onTap: () => Navigator.pushNamed(context, '/contacts'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                  borderRadius: BorderRadius.circular(16),
+                  color: Colors.red.withValues(alpha: 0.05),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.add_call, color: Colors.red, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'आपतकालीन सम्पर्क थप्नुहोस् (Add Emergency Contacts)',
+                      style: GoogleFonts.outfit(fontSize: 13, color: Colors.red[700]),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: Row(
+            children: emergency.map((c) => Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: _QuickDialButton(contact: c),
+              ),
+            )).toList(),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _QuickDialButton extends StatelessWidget {
+  final Contact contact;
+  const _QuickDialButton({required this.contact});
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(32),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.heavyImpact();
+        context.read<ContactService>().callContact(contact);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFE53935), Color(0xFFB71C1C)],
           ),
-          child: child,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.red.withValues(alpha: 0.3),
+              blurRadius: 10, offset: const Offset(0, 4),
+            ),
+          ],
         ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
+              child: Text(contact.initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              contact.name.split(' ').first,
+              style: GoogleFonts.outfit(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+              overflow: TextOverflow.ellipsis,
+            ),
+            const Icon(Icons.call_rounded, color: Colors.white, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Action Grid ──────────────────────────────────────────────────────────────
+
+class _ActionGrid extends StatelessWidget {
+  final void Function({bool heavy}) haptic;
+  const _ActionGrid({required this.haptic});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: _ActionCard(
+          label: 'औषधी\nReminders',
+          icon: Icons.medication_rounded,
+          color: const Color(0xFF00897B),
+          onTap: () { haptic(); Navigator.pushNamed(context, '/reminders'); },
+        )),
+        const SizedBox(width: 10),
+        Expanded(child: _ActionCard(
+          label: 'कल गर्नुहोस्\nContacts',
+          icon: Icons.contacts_rounded,
+          color: const Color(0xFF1E88E5),
+          onTap: () { haptic(); Navigator.pushNamed(context, '/contacts'); },
+        )),
+        const SizedBox(width: 10),
+        Expanded(child: _ActionCard(
+          label: 'मद्दत\nSOS',
+          icon: Icons.sos_rounded,
+          color: const Color(0xFFC62828),
+          onTap: () { haptic(heavy: true); _showSOSDialog(context); },
+        )),
+      ],
+    );
+  }
+
+  void _showSOSDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('🆘 आपतकाल! (Emergency!)', textAlign: TextAlign.center),
+        content: const Text(
+          'के तपाईंलाई अहिले मद्दत चाहिन्छ?\n(Do you need help right now?)',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 18),
+        ),
+        actionsAlignment: MainAxisAlignment.spaceEvenly,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('होइन (No)', style: TextStyle(fontSize: 18)),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.call_rounded),
+            label: const Text('हुन्छ (YES)', style: TextStyle(fontSize: 18)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.read<EmergencyService>().triggerSOS(
+                contactService: context.read<ContactService>(),
+                settingsService: context.read<SettingsService>(),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -333,14 +448,12 @@ class _ActionCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
-  final double height;
 
   const _ActionCard({
     required this.label,
     required this.icon,
     required this.color,
     required this.onTap,
-    this.height = 130,
   });
 
   @override
@@ -348,15 +461,14 @@ class _ActionCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: height,
+        height: 110,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: color.withValues(alpha: 0.2),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
+              color: color.withValues(alpha: 0.18),
+              blurRadius: 14, offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -364,23 +476,52 @@ class _ActionCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 48, color: color),
+              child: Icon(icon, size: 32, color: color),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Text(
               label,
+              textAlign: TextAlign.center,
               style: GoogleFonts.outfit(
-                fontSize: 20,
+                fontSize: 11,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
+                height: 1.3,
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Glass Card ───────────────────────────────────────────────────────────────
+
+class _GlassCard extends StatelessWidget {
+  final Widget child;
+  const _GlassCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.75),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+          ),
+          child: child,
         ),
       ),
     );

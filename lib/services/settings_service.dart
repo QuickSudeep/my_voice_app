@@ -1,35 +1,43 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsService {
-  static const String _keyAutoSave = 'auto_save';
-  static const String _keyShowDuration = 'show_duration';
+  static const String _keyAutoSave             = 'auto_save';
+  static const String _keyShowDuration         = 'show_duration';
   static const String _keyMaxRecordingDuration = 'max_recording_duration';
-  static const String _keyAudioQuality = 'audio_quality';
-  static const String _keyAutoStopOnSilence = 'auto_stop_on_silence';
-  static const String _keySilenceThreshold = 'silence_threshold';
-  static const String _keySilenceDuration = 'silence_duration';
-  static const String _keyFastApiUrl = 'fast_api_url';
+  static const String _keyAudioQuality         = 'audio_quality';
+  static const String _keyAutoStopOnSilence    = 'auto_stop_on_silence';
+  static const String _keySilenceThreshold     = 'silence_threshold';
+  static const String _keySilenceDuration      = 'silence_duration';
+  static const String _keyFastApiUrl           = 'fast_api_url';
+  static const String _keyAdminPin             = 'admin_pin';
+  static const String _keyElderlyName          = 'elderly_name';
+  static const String _keyEmergencyNumber      = 'emergency_number';
 
   SharedPreferences? _prefs;
 
-  // Settings
-  bool _autoSave = true;
-  bool _showDuration = true;
-  int _maxRecordingDuration = 300; // 5 minutes in seconds
-  String _audioQuality = 'medium'; // low, medium, high
-  bool _autoStopOnSilence = false;
-  double _silenceThreshold = -45.0; // In dB (0 is loudest, -60 is very quiet)
-  int _silenceDuration = 2; // Seconds of silence before auto-stop
-  String _fastApiUrl = 'http://localhost:8000/process-audio/';
+  bool   _autoSave             = true;
+  bool   _showDuration         = true;
+  int    _maxRecordingDuration = 300;
+  String _audioQuality         = 'medium';
+  bool   _autoStopOnSilence    = false;
+  double _silenceThreshold     = -45.0;
+  int    _silenceDuration      = 2;
+  String _fastApiUrl           = 'http://192.168.1.100:8000/process-audio/';
+  String _adminPin             = '1234';
+  String _elderlyName          = 'बाजे / बज्यै';
+  String _emergencyNumber      = '100';
 
-  bool get autoSave => _autoSave;
-  bool get showDuration => _showDuration;
-  int get maxRecordingDuration => _maxRecordingDuration;
-  String get audioQuality => _audioQuality;
-  bool get autoStopOnSilence => _autoStopOnSilence;
-  double get silenceThreshold => _silenceThreshold;
-  int get silenceDuration => _silenceDuration;
-  String get fastApiUrl => _fastApiUrl;
+  bool   get autoSave             => _autoSave;
+  bool   get showDuration         => _showDuration;
+  int    get maxRecordingDuration => _maxRecordingDuration;
+  String get audioQuality         => _audioQuality;
+  bool   get autoStopOnSilence    => _autoStopOnSilence;
+  double get silenceThreshold     => _silenceThreshold;
+  int    get silenceDuration      => _silenceDuration;
+  String get fastApiUrl           => _fastApiUrl;
+  String get adminPin             => _adminPin;
+  String get elderlyName          => _elderlyName;
+  String get emergencyNumber      => _emergencyNumber;
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -37,55 +45,30 @@ class SettingsService {
   }
 
   void _loadSettings() {
-    _autoSave = _prefs?.getBool(_keyAutoSave) ?? true;
-    _showDuration = _prefs?.getBool(_keyShowDuration) ?? true;
-    _maxRecordingDuration = _prefs?.getInt(_keyMaxRecordingDuration) ?? 300;
-    _audioQuality = _prefs?.getString(_keyAudioQuality) ?? 'medium';
-    _autoStopOnSilence = _prefs?.getBool(_keyAutoStopOnSilence) ?? false;
-    _silenceThreshold = _prefs?.getDouble(_keySilenceThreshold) ?? -45.0;
-    _silenceDuration = _prefs?.getInt(_keySilenceDuration) ?? 2;
-    _fastApiUrl = _prefs?.getString(_keyFastApiUrl) ?? 'http://localhost:8000/process-audio/';
+    _autoSave             = _prefs?.getBool(_keyAutoSave)              ?? true;
+    _showDuration         = _prefs?.getBool(_keyShowDuration)          ?? true;
+    _maxRecordingDuration = _prefs?.getInt(_keyMaxRecordingDuration)   ?? 300;
+    _audioQuality         = _prefs?.getString(_keyAudioQuality)        ?? 'medium';
+    _autoStopOnSilence    = _prefs?.getBool(_keyAutoStopOnSilence)     ?? false;
+    _silenceThreshold     = _prefs?.getDouble(_keySilenceThreshold)    ?? -45.0;
+    _silenceDuration      = _prefs?.getInt(_keySilenceDuration)        ?? 2;
+    _fastApiUrl           = _prefs?.getString(_keyFastApiUrl)          ?? 'http://192.168.1.100:8000/process-audio/';
+    _adminPin             = _prefs?.getString(_keyAdminPin)            ?? '1234';
+    _elderlyName          = _prefs?.getString(_keyElderlyName)         ?? 'बाजे / बज्यै';
+    _emergencyNumber      = _prefs?.getString(_keyEmergencyNumber)     ?? '100';
   }
 
-  Future<void> setAutoSave(bool value) async {
-    _autoSave = value;
-    await _prefs?.setBool(_keyAutoSave, value);
-  }
-
-  Future<void> setShowDuration(bool value) async {
-    _showDuration = value;
-    await _prefs?.setBool(_keyShowDuration, value);
-  }
-
-  Future<void> setMaxRecordingDuration(int seconds) async {
-    _maxRecordingDuration = seconds;
-    await _prefs?.setInt(_keyMaxRecordingDuration, seconds);
-  }
-
-  Future<void> setAudioQuality(String quality) async {
-    _audioQuality = quality;
-    await _prefs?.setString(_keyAudioQuality, quality);
-  }
-
-  Future<void> setAutoStopOnSilence(bool value) async {
-    _autoStopOnSilence = value;
-    await _prefs?.setBool(_keyAutoStopOnSilence, value);
-  }
-
-  Future<void> setSilenceThreshold(double value) async {
-    _silenceThreshold = value;
-    await _prefs?.setDouble(_keySilenceThreshold, value);
-  }
-
-  Future<void> setSilenceDuration(int seconds) async {
-    _silenceDuration = seconds;
-    await _prefs?.setInt(_keySilenceDuration, seconds);
-  }
-
-  Future<void> setFastApiUrl(String url) async {
-    _fastApiUrl = url;
-    await _prefs?.setString(_keyFastApiUrl, url);
-  }
+  Future<void> setAutoSave(bool v)              async { _autoSave = v;             await _prefs?.setBool(_keyAutoSave, v); }
+  Future<void> setShowDuration(bool v)          async { _showDuration = v;         await _prefs?.setBool(_keyShowDuration, v); }
+  Future<void> setMaxRecordingDuration(int s)   async { _maxRecordingDuration = s; await _prefs?.setInt(_keyMaxRecordingDuration, s); }
+  Future<void> setAudioQuality(String q)        async { _audioQuality = q;         await _prefs?.setString(_keyAudioQuality, q); }
+  Future<void> setAutoStopOnSilence(bool v)     async { _autoStopOnSilence = v;    await _prefs?.setBool(_keyAutoStopOnSilence, v); }
+  Future<void> setSilenceThreshold(double v)    async { _silenceThreshold = v;     await _prefs?.setDouble(_keySilenceThreshold, v); }
+  Future<void> setSilenceDuration(int s)        async { _silenceDuration = s;      await _prefs?.setInt(_keySilenceDuration, s); }
+  Future<void> setFastApiUrl(String url)        async { _fastApiUrl = url;         await _prefs?.setString(_keyFastApiUrl, url); }
+  Future<void> setAdminPin(String pin)          async { _adminPin = pin;           await _prefs?.setString(_keyAdminPin, pin); }
+  Future<void> setElderlyName(String name)      async { _elderlyName = name;       await _prefs?.setString(_keyElderlyName, name); }
+  Future<void> setEmergencyNumber(String num)   async { _emergencyNumber = num;    await _prefs?.setString(_keyEmergencyNumber, num); }
 
   Future<void> resetToDefaults() async {
     await setAutoSave(true);
@@ -95,6 +78,9 @@ class SettingsService {
     await setAutoStopOnSilence(false);
     await setSilenceThreshold(-45.0);
     await setSilenceDuration(2);
-    await setFastApiUrl('http://localhost:8000/process-audio/');
+    await setFastApiUrl('http://192.168.1.100:8000/process-audio/');
+    await setAdminPin('1234');
+    await setElderlyName('बाजे / बज्यै');
+    await setEmergencyNumber('100');
   }
 }

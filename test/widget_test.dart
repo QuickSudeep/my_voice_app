@@ -2,16 +2,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:my_voice_assistant_app/main.dart';
 import 'package:my_voice_assistant_app/services/settings_service.dart';
 import 'package:my_voice_assistant_app/services/reminder_service.dart';
+import 'package:my_voice_assistant_app/services/contact_service.dart';
 
 void main() {
   testWidgets('App smoke test', (WidgetTester tester) async {
     final settingsService = SettingsService();
     final reminderService = ReminderService();
+    final contactService  = ContactService();
     
     // Build our app and trigger a frame.
     await tester.pumpWidget(NepaliVoiceAssistantApp(
       settingsService: settingsService,
       reminderService: reminderService,
+      contactService: contactService,
     ));
 
     // Verify that the title is present
