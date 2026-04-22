@@ -280,6 +280,34 @@ class _SettingsTabState extends State<_SettingsTab> {
           ],
         ),
 
+        // ── Reminder Settings ──────────────────────────────────────────────
+        _SectionCard(
+          title: '⏰ Reminder Defaults',
+          children: [
+            Text('Default Reminder Mode', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: settings.reminderMode,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                filled: true,
+                fillColor: const Color(0xFFF0F4FF),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'alarm', child: Text('Regular Alarm (Looping Title)')),
+                DropdownMenuItem(value: 'voiceConfirmation', child: Text('Voice Interactive (Confirm Reply)')),
+              ],
+              onChanged: (v) async {
+                if (v != null) {
+                  await settings.setReminderMode(v);
+                  setState(() {});
+                }
+              },
+            ),
+          ],
+        ),
+
         // ── Recording Settings ─────────────────────────────────────────────
         _SectionCard(
           title: '🎙️ Recording',

@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-enum ServerAction { playAudio, setReminder, makeCall, showMessage }
+enum ServerAction { playAudio, setReminder, makeCall, showMessage, playMusic }
 
 extension ServerActionExt on ServerAction {
   static ServerAction fromString(String? s) {
@@ -8,6 +8,7 @@ extension ServerActionExt on ServerAction {
       case 'set_reminder': return ServerAction.setReminder;
       case 'make_call':    return ServerAction.makeCall;
       case 'play_audio':   return ServerAction.playAudio;
+      case 'play_music':   return ServerAction.playMusic;
       default:             return ServerAction.showMessage;
     }
   }
@@ -45,6 +46,8 @@ class ServerResponse {
   final String text;
   final String? audioBase64; // base64-encoded audio (optional)
   final String? phone;       // for make_call action
+  final String? contactName; // local name lookup for make_call
+  final String? songName;    // for play_music action
   final ReminderData? reminderData; // for set_reminder action
 
   const ServerResponse({
@@ -52,6 +55,8 @@ class ServerResponse {
     required this.text,
     this.audioBase64,
     this.phone,
+    this.contactName,
+    this.songName,
     this.reminderData,
   });
 
@@ -64,6 +69,8 @@ class ServerResponse {
       text: json['text'] as String? ?? '',
       audioBase64: json['audio'] as String?,
       phone: data?['phone'] as String?,
+      contactName: data?['contact_name'] as String?,
+      songName: data?['song_name'] as String?,
       reminderData: data?['reminder'] != null
           ? ReminderData.fromJson(data!['reminder'] as Map<String, dynamic>)
           : null,

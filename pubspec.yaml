@@ -41,7 +41,14 @@ dependencies:
   url_launcher: ^6.3.0
   google_fonts: ^6.2.1
 
+  # Text-to-speech for reminder audio announcements
+  flutter_tts: ^4.0.2
+
   timezone: ^0.9.4
+  flutter_phone_direct_caller: ^2.2.1
+  file_picker: ^11.0.2
+  just_audio_background: ^0.0.1-beta.17
+  audioplayers: ^6.6.0
 
 dev_dependencies:
   flutter_test:

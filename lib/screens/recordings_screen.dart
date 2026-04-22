@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:just_audio/just_audio.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:audio_session/audio_session.dart';
 import 'package:path/path.dart' as p;
 import '../services/voice_service.dart';
 
@@ -22,22 +23,21 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
     super.initState();
 
     // Listen to player state
-    _audioPlayer.playerStateStream.listen((state) {
+    _audioPlayer.onPlayerStateChanged.listen((state) {
       if (mounted) {
         setState(() {
-          _isPlaying = state.playing;
+          _isPlaying = state == PlayerState.playing;
         });
       }
     });
 
     // Listen to playback completion
-    _audioPlayer.processingStateStream.listen((state) {
-      if (state == ProcessingState.completed) {
-        setState(() {
-          _currentlyPlayingPath = null;
-          _isPlaying = false;
-        });
-      }
+    _audioPlayer.onPlayerComplete.listen((_) {
+      AudioSession.instance.then((session) => session.setActive(false));
+      setState(() {
+        _currentlyPlayingPath = null;
+        _isPlaying = false;
+      });
     });
   }
 
@@ -54,12 +54,15 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
         if (_isPlaying) {
           await _audioPlayer.pause();
         } else {
-          await _audioPlayer.play();
+          await _audioPlayer.resume();
         }
       } else {
         // Play new recording
-        await _audioPlayer.setFilePath(path);
-        await _audioPlayer.play();
+        final session = await AudioSession.instance;
+        await session.configure(const AudioSessionConfiguration.speech());
+        await session.setActive(true);
+        
+        await _audioPlayer.play(DeviceFileSource(path));
         setState(() {
           _currentlyPlayingPath = path;
         });
@@ -75,6 +78,9 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
 
   Future<void> _stopPlayback() async {
     await _audioPlayer.stop();
+    final session = await AudioSession.instance;
+    await session.setActive(false);
+    
     setState(() {
       _currentlyPlayingPath = null;
       _isPlaying = false;
@@ -107,7 +113,9 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
         await _stopPlayback();
       }
 
-      final success = await context.read<VoiceService>().deleteRecording(path);
+      if (!mounted) return;
+      final voiceService = context.read<VoiceService>();
+      final success = await voiceService.deleteRecording(path);
 
       if (mounted) {
         if (success) {
@@ -263,12 +271,12 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
       // Currently playing indicator
       bottomNavigationBar: _currentlyPlayingPath != null
           ? StreamBuilder<Duration>(
-              stream: _audioPlayer.positionStream,
+              stream: _audioPlayer.onPositionChanged,
               builder: (context, positionSnapshot) {
                 final position = positionSnapshot.data ?? Duration.zero;
 
                 return StreamBuilder<Duration?>(
-                  stream: _audioPlayer.durationStream,
+                  stream: _audioPlayer.onDurationChanged,
                   builder: (context, durationSnapshot) {
                     final duration = durationSnapshot.data ?? Duration.zero;
                     final progress = duration.inMilliseconds > 0

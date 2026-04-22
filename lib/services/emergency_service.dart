@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
 import 'contact_service.dart';
 import 'settings_service.dart';
 
@@ -27,15 +27,10 @@ class EmergencyService extends ChangeNotifier {
   }
 
   Future<void> _callNumber(String phone) async {
-    final uri = Uri.parse('tel:${phone.trim()}');
     try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-      } else {
-        debugPrint('Cannot launch dialer for $phone');
-      }
+      await FlutterPhoneDirectCaller.callNumber(phone.trim());
     } catch (e) {
-      debugPrint('SOS call error: $e');
+      debugPrint('SOS direct call error: $e');
     }
   }
 

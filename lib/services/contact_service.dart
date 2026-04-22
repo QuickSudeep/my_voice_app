@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
 import '../models/contact_model.dart';
 
 class ContactService extends ChangeNotifier {
@@ -47,14 +47,11 @@ class ContactService extends ChangeNotifier {
   }
 
   Future<bool> callNumber(String phone) async {
-    final uri = Uri.parse('tel:${phone.trim()}');
     try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-        return true;
-      }
+      final res = await FlutterPhoneDirectCaller.callNumber(phone.trim());
+      return res ?? false;
     } catch (e) {
-      debugPrint('Call error: $e');
+      debugPrint('Direct call error: $e');
     }
     return false;
   }

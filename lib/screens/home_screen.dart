@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import '../services/voice_service.dart';
 import '../services/settings_service.dart';
 import '../services/emergency_service.dart';
-
+import '../services/music_service.dart';
 import '../services/contact_service.dart';
 import '../models/contact_model.dart';
 
@@ -47,7 +47,16 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _handleMicTap() async {
     final voice    = context.read<VoiceService>();
     final settings = context.read<SettingsService>();
+    final music    = context.read<MusicService>();
     _haptic(heavy: !voice.isRecording);
+
+    // Auto-stop music when mic is tapped
+    if (music.isPlaying) {
+      await music.stop();
+    }
+    
+    // Auto-stop any active AI speaking when mic is tapped
+    await voice.stopAudio();
 
     if (!voice.isRecording && !voice.isPaused) {
       await voice.startRecording(
@@ -82,6 +91,11 @@ class _HomeScreenState extends State<HomeScreen>
             tooltip: 'Recordings',
             icon: const Icon(Icons.history_rounded, size: 30),
             onPressed: () => Navigator.pushNamed(context, '/recordings'),
+          ),
+          IconButton(
+            tooltip: 'Music',
+            icon: const Icon(Icons.music_note_rounded, size: 30),
+            onPressed: () => Navigator.pushNamed(context, '/music'),
           ),
           IconButton(
             tooltip: 'Admin',
@@ -297,9 +311,12 @@ class _QuickDialRow extends StatelessWidget {
                   children: [
                     const Icon(Icons.add_call, color: Colors.red, size: 20),
                     const SizedBox(width: 8),
-                    Text(
-                      'आपतकालीन सम्पर्क थप्नुहोस् (Add Emergency Contacts)',
-                      style: GoogleFonts.outfit(fontSize: 13, color: Colors.red[700]),
+                    Flexible(
+                      child: Text(
+                        'आपतकालीन सम्पर्क थप्नुहोस् (Add Emergency Contacts)',
+                        style: GoogleFonts.outfit(fontSize: 13, color: Colors.red[700]),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ],
                 ),
@@ -378,28 +395,32 @@ class _ActionGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        Expanded(child: _ActionCard(
-          label: 'औषधी\nReminders',
-          icon: Icons.medication_rounded,
-          color: const Color(0xFF00897B),
-          onTap: () { haptic(); Navigator.pushNamed(context, '/reminders'); },
-        )),
-        const SizedBox(width: 10),
-        Expanded(child: _ActionCard(
-          label: 'कल गर्नुहोस्\nContacts',
-          icon: Icons.contacts_rounded,
-          color: const Color(0xFF1E88E5),
-          onTap: () { haptic(); Navigator.pushNamed(context, '/contacts'); },
-        )),
-        const SizedBox(width: 10),
-        Expanded(child: _ActionCard(
-          label: 'मद्दत\nSOS',
-          icon: Icons.sos_rounded,
-          color: const Color(0xFFC62828),
-          onTap: () { haptic(heavy: true); _showSOSDialog(context); },
-        )),
+        Row(
+          children: [
+            Expanded(child: _ActionCard(
+              label: 'औषधी\nReminders',
+              icon: Icons.medication_rounded,
+              color: const Color(0xFF00897B),
+              onTap: () { haptic(); Navigator.pushNamed(context, '/reminders'); },
+            )),
+            const SizedBox(width: 10),
+            Expanded(child: _ActionCard(
+              label: 'कल गर्नुहोस्\nContacts',
+              icon: Icons.contacts_rounded,
+              color: const Color(0xFF1E88E5),
+              onTap: () { haptic(); Navigator.pushNamed(context, '/contacts'); },
+            )),
+            const SizedBox(width: 10),
+            Expanded(child: _ActionCard(
+              label: 'मद्दत\nSOS',
+              icon: Icons.sos_rounded,
+              color: const Color(0xFFC62828),
+              onTap: () { haptic(heavy: true); _showSOSDialog(context); },
+            )),
+          ],
+        ),
       ],
     );
   }

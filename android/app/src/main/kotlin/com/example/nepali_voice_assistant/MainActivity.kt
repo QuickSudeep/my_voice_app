@@ -1,5 +1,5 @@
 package com.example.nepali_voice_assistant
 
-import io.flutter.embedding.android.FlutterActivity
+import com.ryanheise.audioservice.AudioServiceFragmentActivity
 
-class MainActivity : FlutterActivity()
+class MainActivity : AudioServiceFragmentActivity()

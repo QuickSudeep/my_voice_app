@@ -8,15 +8,17 @@ import 'package:uuid/uuid.dart';
 import 'package:path/path.dart' as p;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
-import 'package:just_audio/just_audio.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:audio_session/audio_session.dart';
 import '../models/server_response.dart';
 import '../models/reminder_model.dart';
 
-enum RecordingState { idle, recording, paused, processing, error }
+enum RecordingState { idle, recording, paused, processing, confirming, error }
 
 /// Callback invoked when the server requests a reminder/call action.
 typedef OnSetReminder = Future<void> Function(Reminder reminder);
-typedef OnMakeCall    = Future<void> Function(String phone);
+typedef OnMakeCall    = Future<void> Function(String? phone, String? contactName);
+typedef OnPlayMusic   = Future<void> Function(String? songName);
 
 class VoiceService extends ChangeNotifier {
   final AudioRecorder _recorder = AudioRecorder();
@@ -33,9 +35,16 @@ class VoiceService extends ChangeNotifier {
   int            _silenceCounter  = 0;
   String?        _currentApiUrl;
 
+  // Tracks active confirmation recording
+  bool _isConfirming = false;
+  String? _confirmationReminderId;
+  String? _confirmationApiBaseUrl;
+  bool get isConfirming => _isConfirming;
+
   // Callbacks wired by main.dart to cross-service actions
   OnSetReminder? onSetReminder;
   OnMakeCall?    onMakeCall;
+  OnPlayMusic?   onPlayMusic;
 
   RecordingState get state             => _state;
   String         get statusMessage     => _statusMessage;
@@ -171,6 +180,112 @@ class VoiceService extends ChangeNotifier {
       _statusMessage = 'सुन्दै छु...\n(Listening...)';
       notifyListeners();
     } catch (e) { _setError('Failed to resume: $e'); }
+  }
+
+  // ─── Confirmation Recording (separate from normal query pipeline) ───────────
+
+  /// Starts recording specifically for a reminder confirmation.
+  /// Audio is sent to [baseUrl]/confirm-reminder with the [reminderId] attached.
+  Future<void> startConfirmationRecording({
+    required String reminderId,
+    required String baseUrl,
+    bool   autoStop       = true,
+    double threshold      = -45.0,
+    int    silenceDuration = 2,
+  }) async {
+    final hasPermission = await checkPermission();
+    if (!hasPermission) { _setError('Microphone permission not granted'); return; }
+    if (_isConfirming || _state == RecordingState.recording) return;
+
+    final dir      = await _recordingsDir;
+    final ext      = (Platform.isWindows || Platform.isLinux) ? 'wav' : 'm4a';
+    final fileName = 'confirm_${const Uuid().v4()}.$ext';
+    final outputPath = p.join(dir.path, fileName);
+    _currentFilePath = outputPath;
+    _confirmationReminderId = reminderId;
+    _confirmationApiBaseUrl = baseUrl;
+
+    final config = RecordConfig(
+      encoder: (Platform.isWindows || Platform.isLinux) ? AudioEncoder.wav : AudioEncoder.aacLc,
+      bitRate: 128000, sampleRate: 44100, numChannels: 1,
+    );
+
+    await _recorder.start(config, path: outputPath);
+    _isConfirming      = true;
+    _state             = RecordingState.confirming;
+    _recordingDuration = Duration.zero;
+    _errorMessage      = null;
+    notifyListeners();
+
+    _startDurationTracking();
+    if (autoStop) _startAmplitudeMonitoringForConfirm(threshold, silenceDuration);
+
+    debugPrint('Confirmation recording started: $outputPath');
+  }
+
+  /// Stops confirmation recording and uploads to /confirm-reminder.
+  Future<void> stopConfirmationRecording() async {
+    if (!_isConfirming) return;
+    await _amplitudeSubscription?.cancel();
+    _amplitudeSubscription = null;
+
+    _state         = RecordingState.processing;
+    _recordingDuration = Duration.zero;
+    notifyListeners();
+
+    final path = await _recorder.stop();
+    _isConfirming  = false;
+
+    if (path != null) {
+      // Intentionally do NOT await so UI dismisses instantly
+      _uploadConfirmation(
+        path,
+        _confirmationReminderId ?? '',
+        _confirmationApiBaseUrl ?? '',
+      );
+    }
+
+    _state = RecordingState.idle;
+    notifyListeners();
+  }
+
+  void _startAmplitudeMonitoringForConfirm(double threshold, int silenceDuration) {
+    _silenceCounter = 0;
+    _amplitudeSubscription = _recorder
+        .onAmplitudeChanged(const Duration(milliseconds: 500))
+        .listen((amp) {
+      if (_state == RecordingState.confirming) {
+        if (amp.current < threshold) {
+          _silenceCounter++;
+          if (_silenceCounter >= silenceDuration * 2) stopConfirmationRecording();
+        } else {
+          _silenceCounter = 0;
+        }
+      }
+    });
+  }
+
+  Future<void> _uploadConfirmation(String audioPath, String reminderId, String baseUrl) async {
+    try {
+      final uri = Uri.parse(baseUrl.endsWith('/') ? baseUrl : '$baseUrl/')
+          .resolve('confirm-reminder');
+      debugPrint('Uploading confirmation to: $uri');
+
+      final request = http.MultipartRequest('POST', uri);
+      request.fields['reminder_id'] = reminderId;
+      request.files.add(await http.MultipartFile.fromPath(
+        'audio', audioPath, filename: p.basename(audioPath),
+      ));
+
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 30),
+        onTimeout: () => throw TimeoutException('Confirmation upload timed out'),
+      );
+      final body = await streamed.stream.bytesToString();
+      debugPrint('Confirmation response [${streamed.statusCode}]: $body');
+    } catch (e) {
+      debugPrint('Confirmation upload error: $e');
+    }
   }
 
   Future<void> cancelRecording() async {
@@ -353,6 +468,12 @@ class VoiceService extends ChangeNotifier {
 
       // ── Set Reminder ──────────────────────────────────────────────────
       case ServerAction.setReminder:
+        // Play audio confirmation first if supplied
+        if (response.audioBase64 != null) {
+          final bytes = base64Decode(response.audioBase64!);
+          await _playAudioBytes(bytes, 'audio/mpeg');
+        }
+        
         final rd = response.reminderData;
         if (rd != null && onSetReminder != null) {
           final reminder = Reminder(
@@ -367,21 +488,29 @@ class VoiceService extends ChangeNotifier {
           await onSetReminder!(reminder);
           debugPrint('Reminder set via server: ${reminder.title} at ${reminder.formattedTime}');
         }
-        // Also play audio confirmation if supplied
-        if (response.audioBase64 != null) {
-          final bytes = base64Decode(response.audioBase64!);
-          await _playAudioBytes(bytes, 'audio/mpeg');
-        }
 
       // ── Make Call ─────────────────────────────────────────────────────
       case ServerAction.makeCall:
-        if (response.phone != null && onMakeCall != null) {
-          await onMakeCall!(response.phone!);
-          debugPrint('Call triggered via server: ${response.phone}');
-        }
         if (response.audioBase64 != null) {
           final bytes = base64Decode(response.audioBase64!);
           await _playAudioBytes(bytes, 'audio/mpeg');
+        }
+        if ((response.phone != null || response.contactName != null) && onMakeCall != null) {
+          await onMakeCall!(response.phone, response.contactName);
+          debugPrint('Call triggered via server: phone=${response.phone} name=${response.contactName}');
+        }
+
+      // ── Play Music ────────────────────────────────────────────────────
+      case ServerAction.playMusic:
+        // Play the AI's response voice first (e.g. "Okay playing song...")
+        if (response.audioBase64 != null) {
+          final bytes = base64Decode(response.audioBase64!);
+          await _playAudioBytes(bytes, 'audio/mpeg');
+        }
+        // Then start the actual music playback
+        if (onPlayMusic != null && response.songName != null && response.songName!.isNotEmpty) {
+          await onPlayMusic!(response.songName);
+          debugPrint('Play music triggered via server: songName=${response.songName}');
         }
 
       // ── Show Message (text only) ──────────────────────────────────────
@@ -407,15 +536,24 @@ class VoiceService extends ChangeNotifier {
       notifyListeners();
 
       await _player.stop();
-      await _player.setAudioSource(AudioSource.file(tempFile.path));
+      
+      // Request speech audio focus so it properly ducks/pauses background music
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.speech());
+      await session.setActive(true);
+      
+      // Play using the audioplayers package which bypasses background restrictions entirely
       await _player.setVolume(1.0);
-      await _player.play();
+      await _player.play(DeviceFileSource(tempFile.path));
 
-      await _player.processingStateStream
-          .firstWhere((s) => s == ProcessingState.completed)
-          .timeout(const Duration(minutes: 5), onTimeout: () => ProcessingState.idle);
+      try {
+        await _player.onPlayerComplete.first.timeout(const Duration(minutes: 5));
+      } catch (_) {
+        // Ignored if timed out or broken
+      }
 
-      debugPrint('Playback complete');
+      await session.setActive(false);
+      debugPrint('Playback complete and session released');
     } catch (e) {
       debugPrint('Audio play error: $e');
     }
@@ -425,6 +563,19 @@ class VoiceService extends ChangeNotifier {
     if (bytes.isEmpty) return false;
     final first = bytes.first;
     return first == 0x7B; // '{'
+  }
+
+  Future<void> stopAudio() async {
+    try {
+      await _player.stop();
+      final session = await AudioSession.instance;
+      await session.setActive(false);
+    } catch (_) {}
+  }
+
+  Future<void> playAudioBase64(String base64String) async {
+    final bytes = base64Decode(base64String);
+    await _playAudioBytes(bytes, 'audio/mpeg');
   }
 
   String _extensionFromContentType(String contentType) {

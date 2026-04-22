@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 enum ReminderType { medicine, prayer, meal, exercise, water, custom }
 enum RepeatType { once, daily, weekdays, weekends }
+enum ReminderMode { alarm, voiceConfirmation }
 
 extension ReminderTypeExt on ReminderType {
   String get label {
@@ -46,6 +47,19 @@ extension RepeatTypeExt on RepeatType {
       RepeatType.values.firstWhere((e) => e.name == key, orElse: () => RepeatType.daily);
 }
 
+extension ReminderModeExt on ReminderMode {
+  String get label {
+    switch (this) {
+      case ReminderMode.alarm: return 'सामान्य अलार्म (Alarm)';
+      case ReminderMode.voiceConfirmation: return 'आवाज पुष्टि (Voice Confirmation)';
+    }
+  }
+
+  String get key => name;
+  static ReminderMode fromKey(String key) =>
+      ReminderMode.values.firstWhere((e) => e.name == key, orElse: () => ReminderMode.alarm);
+}
+
 class Reminder {
   final int id;
   final String title;
@@ -54,6 +68,7 @@ class Reminder {
   final int minute;
   final ReminderType type;
   final RepeatType repeat;
+  final ReminderMode mode;
   final bool isActive;
 
   const Reminder({
@@ -64,6 +79,7 @@ class Reminder {
     required this.minute,
     required this.type,
     required this.repeat,
+    this.mode = ReminderMode.alarm,
     this.isActive = true,
   });
 
@@ -83,6 +99,7 @@ class Reminder {
     int? minute,
     ReminderType? type,
     RepeatType? repeat,
+    ReminderMode? mode,
     bool? isActive,
   }) {
     return Reminder(
@@ -93,6 +110,7 @@ class Reminder {
       minute: minute ?? this.minute,
       type: type ?? this.type,
       repeat: repeat ?? this.repeat,
+      mode: mode ?? this.mode,
       isActive: isActive ?? this.isActive,
     );
   }
@@ -105,6 +123,7 @@ class Reminder {
     'minute': minute,
     'type': type.key,
     'repeat': repeat.key,
+    'mode': mode.key,
     'isActive': isActive,
   };
 
@@ -116,6 +135,7 @@ class Reminder {
     minute: json['minute'] as int,
     type: ReminderTypeExt.fromKey(json['type'] as String? ?? 'custom'),
     repeat: RepeatTypeExt.fromKey(json['repeat'] as String? ?? 'daily'),
+    mode: ReminderModeExt.fromKey(json['mode'] as String? ?? 'alarm'),
     isActive: json['isActive'] as bool? ?? true,
   );
 }

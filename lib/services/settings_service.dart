@@ -12,6 +12,7 @@ class SettingsService {
   static const String _keyAdminPin             = 'admin_pin';
   static const String _keyElderlyName          = 'elderly_name';
   static const String _keyEmergencyNumber      = 'emergency_number';
+  static const String _keyReminderMode         = 'reminder_mode';
 
   SharedPreferences? _prefs;
 
@@ -26,6 +27,7 @@ class SettingsService {
   String _adminPin             = '1234';
   String _elderlyName          = 'बाजे / बज्यै';
   String _emergencyNumber      = '100';
+  String _reminderMode         = 'alarm'; // 'alarm' or 'voiceConfirmation'
 
   bool   get autoSave             => _autoSave;
   bool   get showDuration         => _showDuration;
@@ -38,6 +40,7 @@ class SettingsService {
   String get adminPin             => _adminPin;
   String get elderlyName          => _elderlyName;
   String get emergencyNumber      => _emergencyNumber;
+  String get reminderMode         => _reminderMode;
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -56,6 +59,7 @@ class SettingsService {
     _adminPin             = _prefs?.getString(_keyAdminPin)            ?? '1234';
     _elderlyName          = _prefs?.getString(_keyElderlyName)         ?? 'बाजे / बज्यै';
     _emergencyNumber      = _prefs?.getString(_keyEmergencyNumber)     ?? '100';
+    _reminderMode         = _prefs?.getString(_keyReminderMode)        ?? 'alarm';
   }
 
   Future<void> setAutoSave(bool v)              async { _autoSave = v;             await _prefs?.setBool(_keyAutoSave, v); }
@@ -69,6 +73,7 @@ class SettingsService {
   Future<void> setAdminPin(String pin)          async { _adminPin = pin;           await _prefs?.setString(_keyAdminPin, pin); }
   Future<void> setElderlyName(String name)      async { _elderlyName = name;       await _prefs?.setString(_keyElderlyName, name); }
   Future<void> setEmergencyNumber(String num)   async { _emergencyNumber = num;    await _prefs?.setString(_keyEmergencyNumber, num); }
+  Future<void> setReminderMode(String mode)     async { _reminderMode = mode;      await _prefs?.setString(_keyReminderMode, mode); }
 
   Future<void> resetToDefaults() async {
     await setAutoSave(true);
@@ -82,5 +87,6 @@ class SettingsService {
     await setAdminPin('1234');
     await setElderlyName('बाजे / बज्यै');
     await setEmergencyNumber('100');
+    await setReminderMode('alarm');
   }
 }

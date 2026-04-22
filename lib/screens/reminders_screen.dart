@@ -289,6 +289,7 @@ class _ReminderFormState extends State<_ReminderForm> {
   late TimeOfDay _selectedTime;
   late ReminderType _selectedType;
   late RepeatType _selectedRepeat;
+  late ReminderMode _selectedMode;
 
   @override
   void initState() {
@@ -299,6 +300,7 @@ class _ReminderFormState extends State<_ReminderForm> {
     _selectedTime = e != null ? TimeOfDay(hour: e.hour, minute: e.minute) : TimeOfDay.now();
     _selectedType = e?.type   ?? ReminderType.medicine;
     _selectedRepeat = e?.repeat ?? RepeatType.daily;
+    _selectedMode = e?.mode   ?? ReminderMode.alarm;
   }
 
   @override
@@ -341,6 +343,7 @@ class _ReminderFormState extends State<_ReminderForm> {
       minute: _selectedTime.minute,
       type:   _selectedType,
       repeat: _selectedRepeat,
+      mode:   _selectedMode,
     );
 
     if (widget.existing != null) {
@@ -480,6 +483,36 @@ class _ReminderFormState extends State<_ReminderForm> {
                         fontSize: 12,
                         color: _selectedRepeat == r ? Colors.white : Colors.black87,
                         fontWeight: _selectedRepeat == r ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                ),
+              )).toList(),
+            ),
+            const SizedBox(height: 14),
+
+            // Mode picker
+            Text('रिमाइन्डरको तरिका (Mode)', style: GoogleFonts.outfit(fontSize: 14, color: Colors.black54)),
+            const SizedBox(height: 8),
+            Row(
+              children: ReminderMode.values.map((m) => Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _selectedMode = m),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    margin: const EdgeInsets.only(right: 6),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: _selectedMode == m ? const Color(0xFF0D47A1) : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      m == ReminderMode.alarm ? 'सामान्य अलार्म' : 'आवाज पुष्टि',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(
+                        fontSize: 13,
+                        color: _selectedMode == m ? Colors.white : Colors.black87,
+                        fontWeight: _selectedMode == m ? FontWeight.bold : FontWeight.normal,
                       ),
                     ),
                   ),
